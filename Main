@@ -1,0 +1,189 @@
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.ArrayList;
+import java.util.List;
+
+class ATMSystem {
+    private Map<String, User> users;
+
+    public ATMSystem() {
+        this.users = new HashMap<>();
+    }
+
+    public void addUser(String userId, String pin, double balance) {
+        users.put(userId, new User(userId, pin, balance));
+    }
+
+    public User authenticateUser(String userId, String pin) {
+        if (users.containsKey(userId)) {
+            User user = users.get(userId);
+            if (user.authenticate(pin)) {
+                return user;
+            }
+        }
+        return null;
+    }
+}
+
+class User {
+    private String userId;
+    private String pin;
+    private Account account;
+    private List<String> transactionHistory;
+
+    public User(String userId, String pin, double initialBalance) {
+        this.userId = userId;
+        this.pin = pin;
+        this.account = new Account(initialBalance);
+        this.transactionHistory = new ArrayList<>();
+    }
+
+    public boolean authenticate(String enteredPin) {
+        return pin.equals(enteredPin);
+    }
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public List<String> getTransactionHistory() {
+        return transactionHistory;
+    }
+
+    public void addTransactionToHistory(String transaction) {
+        transactionHistory.add(transaction);
+    }
+}
+
+class Account {
+    private double balance;
+
+    public Account(double initialBalance) {
+        this.balance = initialBalance;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    public void deposit(double amount) {
+        balance += amount;
+    }
+
+    public void withdraw(double amount) {
+        if (amount <= balance) {
+            balance -= amount;
+        } else {
+            System.out.println("Insufficient funds!");
+        }
+    }
+
+    public void transfer(double amount, Account receiverAccount) {
+        if (amount <= balance) {
+            balance -= amount;
+            receiverAccount.deposit(amount);
+        } else {
+            System.out.println("Insufficient funds for transfer!");
+        }
+    }
+}
+
+class Transaction {
+    public static void deposit(User user, double amount) {
+        user.getAccount().deposit(amount);
+        user.addTransactionToHistory("Deposit: +" + amount);
+        System.out.println("Deposit successful. New balance: $" + user.getAccount().getBalance());
+    }
+
+    public static void withdraw(User user, double amount) {
+        user.getAccount().withdraw(amount);
+        user.addTransactionToHistory("Withdrawal: -" + amount);
+        System.out.println("Withdrawal successful. New balance: $" + user.getAccount().getBalance());
+    }
+
+    public static void transfer(User sender, User receiver, double amount) {
+        sender.getAccount().transfer(amount, receiver.getAccount());
+        sender.addTransactionToHistory("Transfer to " + receiver.getUserId() + ": -" + amount);
+        receiver.addTransactionToHistory("Transfer from " + sender.getUserId() + ": +" + amount);
+        System.out.println("Transfer successful. New balance: $" + sender.getAccount().getBalance());
+    }
+
+    public static void showTransactionHistory(User user) {
+        System.out.println("Transaction History:");
+        for (String transaction : user.getTransactionHistory()) {
+            System.out.println(transaction);
+        }
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        ATMSystem atmSystem = new ATMSystem();
+        atmSystem.addUser("12345", "6789", 1000.0);
+        atmSystem.addUser("67890", "1234", 500.0);
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter user ID: ");
+        String userId = scanner.nextLine();
+
+        System.out.print("Enter PIN: ");
+        String pin = scanner.nextLine();
+
+        User user = atmSystem.authenticateUser(userId, pin);
+
+        if (user != null) {
+            System.out.println("Authentication successful. Welcome, " + userId + "!");
+            System.out.println("Current balance: $" + user.getAccount().getBalance());
+
+            int choice;
+            do {
+                System.out.println("\nChoose an option:");
+                System.out.println("1. Deposit");
+                System.out.println("2. Withdraw");
+                System.out.println("3. Transfer");
+                System.out.println("4. Transaction History");
+                System.out.println("5. Quit");
+                System.out.print("Enter your choice: ");
+                choice = scanner.nextInt();
+
+                switch (choice) {
+                    case 1:
+                        System.out.print("Enter deposit amount: $");
+                        double depositAmount = scanner.nextDouble();
+                        Transaction.deposit(user, depositAmount);
+                        break;
+                    case 2:
+                        System.out.print("Enter withdrawal amount: $");
+                        double withdrawalAmount = scanner.nextDouble();
+                        Transaction.withdraw(user, withdrawalAmount);
+                        break;
+                    case 3:
+                        System.out.print("Enter recipient's user ID: ");
+                        String recipientId = scanner.next();
+                        User recipient = atmSystem.authenticateUser(recipientId, "");
+                        if (recipient != null) {
+                            System.out.print("Enter transfer amount: $");
+                            double transferAmount = scanner.nextDouble();
+                            Transaction.transfer(user, recipient, transferAmount);
+                        } else {
+                            System.out.println("Recipient not found. Please check the user ID.");
+                        }
+                        break;
+                    case 4:
+                        Transaction.showTransactionHistory(user);
+                        break;
+                    case 5:
+                        System.out.println("Exiting. Thank you for using the ATM!");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please enter a valid option.");
+                        break;
+                }
+
+            } while (choice != 5);
+        } else {
+            System.out.println("Authentication failed. Please check your ID and PIN.");
+        }
+    }
+}
